@@ -1,4 +1,5 @@
 ## Estructura del proyecto
+
 ├── data/
 │   └── 3 Binario (RJ, B, RY).csv
 ├── notebooks/
