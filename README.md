@@ -1,275 +1,551 @@
-# Satisfaction with Democracy in Ecuador: Machine Learning Analysis
+# Satisfaction with Democracy in Ecuador
 
-This repository contains a machine learning workflow to analyze and predict satisfaction with democracy in Ecuador using Latinobarómetro survey data. The project focuses on binary classification and compares model performance across three historical periods.
+This repository contains a reproducible machine learning workflow for analyzing satisfaction with democracy in Ecuador using Latinobarómetro survey data. The study evaluates classification performance across three temporal periods and interprets the most relevant predictors associated with satisfaction or dissatisfaction with democracy.
+
+The analysis is implemented in the notebook:
+
+```text
+ecuador_satisfaccion_democracia.ipynb
+```
 
 ## Project Objective
 
-The study has two main objectives:
+This study has two main objectives:
 
-1. **Predictive evaluation**: evaluate the performance of different classification models for predicting satisfaction with democracy in Ecuador.
-2. **Predictor interpretation**: identify and interpret the most important predictors associated with satisfaction with democracy across historical periods.
+1. To evaluate the predictive performance of different classification models across three temporal periods.
+2. To identify the most relevant predictors associated with satisfaction with democracy in Ecuador, focusing on political attitudes, institutional trust, economic perceptions, material conditions, labor conditions, and sociodemographic characteristics.
 
-The target variable is `ETIQUETA`:
+The target variable is `ETIQUETA`, where:
 
-- `1`: Satisfied with democracy
-- `0`: Dissatisfied with democracy
+```text
+0 = Dissatisfied with democracy
+1 = Satisfied with democracy
+```
 
-The analysis is restricted to Ecuadorian survey records using `X_23 = 218`.
+The study is predictive and interpretative. The results should be understood as predictive associations, not causal effects.
 
-## Historical Periods
+---
 
-The analysis compares three historical periods:
+## Data Source and Study Scope
 
-| Period | Years | Description |
-|---|---:|---|
-| `1_Pre_Correismo` | 1995–2006 | Period before Rafael Correa's government |
-| `2_Correismo` | 2007–2017 | Rafael Correa's government period |
-| `3_Post_Correismo` | 2018–2023 | Period after Rafael Correa's government |
+The analysis uses Latinobarómetro survey data. The unit of analysis is the individual survey respondent.
 
-These periods are used as an analytical framework to compare predictive patterns across political contexts. They should not be interpreted as a causal identification strategy.
+The dataset is filtered to Ecuador using the country code:
 
-## Dataset
+```text
+X_23 = 218
+```
 
-The dataset comes from Latinobarómetro and includes political attitudes, institutional trust, economic perceptions, material conditions, and sociodemographic variables.
+After filtering Ecuador, the working dataset contains:
 
-Main variable groups:
+```text
+17,902 observations
+```
 
-- **Political attitudes**: support for democracy, left-right self-positioning.
-- **Economic perceptions**: perception of national economic situation.
-- **Institutional trust**: trust in Congress, Judiciary, Church, Police, Armed Forces, and Political Parties.
-- **Material conditions**: access to household goods and services.
-- **Sociodemographic characteristics**: sex, age, education, employment situation, socioeconomic status, religion.
+The original dataset contains multiple countries and survey years. The analysis focuses only on Ecuadorian respondents.
 
-Some variables are excluded from the baseline models:
+---
 
-- `A_3`: political party vote intention; high cardinality and historically changing categories.
-- `X_23`: country code; constant after filtering Ecuador.
-- `X_25`: region/geographical area; high cardinality.
+## Survey Year Harmonization
 
-The survey year variable `X_24` is used to create historical periods but is not included as a predictor in the baseline models.
-
-## Modeling Strategy
-
-The notebook is organized into three classification experiments.
-
-### Experiment 1: Class Weight Grid
-
-This experiment evaluates:
-
-- Logistic Regression
-- Decision Tree
-- Random Forest
-
-Class imbalance is handled through `class_weight` as part of the hyperparameter grid. Therefore, models with and without class weighting are compared automatically through `GridSearchCV`.
-
-### Experiment 2: RandomOverSampler
-
-This experiment evaluates the same model families using `RandomOverSampler`. The minority class is oversampled only within the training folds during cross-validation using `imblearn.pipeline.Pipeline`, avoiding data leakage.
-
-### Experiment 3: SMOTENC
-
-This experiment evaluates `SMOTENC`, a synthetic oversampling method designed for datasets with both numeric and categorical features.
-
-For SMOTENC:
-
-- `S_17` is treated as the continuous numeric variable.
-- Binary, ordinal, and nominal survey-coded variables are treated as categorical features.
-
-The test set remains untouched in all experiments.
-
-## Model Selection and Evaluation
-
-The main selection metric is:
+The survey year variable is `X_24`. Some year values required harmonization before defining temporal periods. The notebook applies a year correction mapping to convert specific encoded values into actual calendar years:
 
 ```python
-REFIT_METRIC = "f1_macro"
+YEAR_MAPPING = {
+    16: 2011,
+    17: 2013,
+    18: 2015,
+    23: 2023,
+}
 ```
 
-This metric is used because the target variable is imbalanced and both classes are relevant.
+After correction, the available survey years for the analysis include non-continuous Latinobarómetro survey years. Not every calendar year is available.
 
-The following metrics are reported:
+---
 
-- Accuracy
-- Balanced accuracy
-- Precision for the positive class (`Satisfied = 1`)
-- Recall for the positive class (`Satisfied = 1`)
-- F1-score for the positive class (`Satisfied = 1`)
-- Macro F1-score
-- ROC-AUC
+## Temporal Period Definition
 
-The test set is used only for final evaluation. Hyperparameter tuning is performed through stratified cross-validation on the training set.
+The analysis uses three temporal periods defined from visible changes in the temporal distribution of satisfaction and dissatisfaction with democracy.
 
-## Final Model Comparison
-
-After running the three experiments, results are combined into a single comparison table. The best final model is selected for each historical period according to `f1_macro`.
-
-The current final selection was:
-
-| Period | Final selected model | Strategy |
-|---|---|---|
-| Pre-Correismo | Random Forest + RandomOverSampler | RandomOverSampler |
-| Correismo | Random Forest + SMOTENC | SMOTENC |
-| Post-Correismo | Random Forest | Class weight grid |
-
-The results indicate that no single imbalance-handling strategy consistently dominates across all periods. The effect of class balancing is period-dependent.
-
-## Predictor Importance Analysis
-
-The project includes a predictor importance analysis to support interpretation.
-
-Three complementary methods are considered:
-
-### 1. Permutation Importance
-
-Permutation importance is used as the main interpretation method. It measures how much `f1_macro` decreases when a predictor is randomly shuffled in the test set.
-
-This method is model-agnostic and directly linked to the selected evaluation metric.
-
-### 2. Tree-Based Feature Importance
-
-Tree-based feature importance is computed for the best Random Forest model in each period. This is included as a complementary method because it is commonly used in machine learning and ICT studies.
-
-It measures the internal contribution of each feature to impurity reduction in tree-based models.
-
-### 3. Logistic Regression Coefficients
-
-The best Logistic Regression model in each period is used as an interpretable linear reference. Coefficients help inspect the direction and magnitude of linear associations with the positive class, `Satisfied = 1`.
-
-All interpretation results should be understood as predictive associations, not causal effects.
-
-## Main Predictor Importance Findings
-
-Using permutation importance, the top predictors by period were:
-
-### Pre-Correismo
-
-- (A COMPLETAR)
-
-### Correismo
-
-- (A COMPLETAR)
-### Post-Correismo
-
-- (A COMPLETAR)
-
-## Notebook Structure
-
-The notebook is organized as follows:
+The current period definitions are:
 
 ```text
-# Project Overview and Research Objective
+First period: 1996–2003
+Second period: 2004–2013
+Third period: 2014–2024
+```
 
-# PART 1 — Environment and Configuration
-## Environment and Libraries
-## Package Versions
-## General Configuration
+However, there are no available Ecuadorian Latinobarómetro observations for 2014. Therefore, the third period is conceptually defined as 2014–2024, but the observed survey years for Ecuador in this interval start in 2015.
 
-# PART 2 — Data Loading and Preparation
-## Load Dataset
-## Dataset Documentation
-## Working Copy
-## Survey Year Correction
-## Filter Ecuador
-## Exclude Variables Not Used in the Baseline Model
+The empirical analysis is therefore based on:
 
-# PART 3 — Data Quality and Descriptive Analysis
-## Initial Data Quality Review
-## Expected Value Validation
-## Type Conversion
-## Conceptual Feature Groups
-## Historical Period Definition
-## Target Distribution by Historical Period
-## Temporal Trend of Satisfaction and Dissatisfaction
+```text
+First period: observed years 1996–2003
+Second period: observed years 2004–2013
+Third period: observed years 2015–2024
+```
 
-# PART 4 — Shared Modeling Setup
-## Period-Specific Dataset Preparation
-## Period-Specific Train/Test Split
+The period labels used in the notebook are neutral:
+
+```text
+1_Period = First period
+2_Period = Second period
+3_Period = Third period
+```
+
+No political labels are used in the final period naming.
+
+---
+
+## Target Variable Distribution
+
+The target variable is imbalanced, with more respondents dissatisfied than satisfied with democracy.
+
+Overall Ecuadorian distribution:
+
+```text
+Dissatisfied (0): 11,740 observations, 65.58%
+Satisfied (1):    6,162 observations, 34.42%
+```
+
+Distribution by period:
+
+| Period | Dissatisfied (0) | Satisfied (1) | Total | % Dissatisfied | % Satisfied |
+|---|---:|---:|---:|---:|---:|
+| First period | 4,017 | 1,505 | 5,522 | 72.75% | 27.25% |
+| Second period | 4,051 | 2,736 | 6,787 | 59.69% | 40.31% |
+| Third period | 3,672 | 1,921 | 5,593 | 65.65% | 34.35% |
+
+The class imbalance motivates the use of macro F1-score, balanced accuracy, class weighting, and resampling methods.
+
+---
+
+## Variable Exclusion
+
+The following variables are excluded from the baseline predictive model:
+
+```text
+A_3  = Party vote intention
+X_23 = Country code
+X_25 = Region / geographical area
+```
+
+The reasons are:
+
+- `A_3` is excluded due to high cardinality.
+- `X_23` is excluded because it is constant after filtering Ecuador.
+- `X_25` is excluded due to high cardinality.
+
+---
+
+## Predictor Set
+
+The final predictor set contains 21 variables.
+
+### Binary predictors
+
+```text
+C_4
+D_6, D_7, D_8, D_9
+S_16, S_18
+```
+
+### Ordinal predictors
+
+```text
+A_2
+D_5
+H_10, H_11, H_12, H_13, H_14, H_15
+S_19
+S_21
+```
+
+### Numeric predictors
+
+```text
+S_17
+```
+
+### Nominal predictors
+
+```text
+A_1
+S_20
+S_22
+```
+
+---
+
+## Conceptual Predictor Groups
+
+For interpretation, predictors are grouped into substantive dimensions:
+
+```text
+Political attitudes
+Institutional trust
+Economic perceptions
+Material conditions
+Labor and economic conditions
+Sociodemographic characteristics
+```
+
+These groups are used to interpret how different dimensions contribute to the classification of satisfaction with democracy across periods.
+
+---
+
+## Data Quality Assessment
+
+The notebook performs several data quality checks:
+
+```text
+- Dataset dimensions
+- Missing values
+- Expected value validation
+- Data type conversion
+- Duplicate row inspection
+```
+
+No missing values were detected in the selected variables.
+
+The notebook identified 314 duplicated rows. These rows were inspected but not removed.
+
+Duplicated rows are defined by pandas as rows where all values are identical to a previous row. In survey data, this does not necessarily imply administrative duplication. Since many variables are categorical or ordinal, different respondents may have identical response profiles. Therefore, duplicated response profiles were retained in the analysis.
+
+Recommended methodological statement:
+
+```text
+Duplicate rows were inspected as part of the data quality assessment. Because the dataset consists of survey responses coded mostly as categorical or ordinal variables, identical rows may correspond to different respondents with the same response profile rather than true administrative duplicates. Therefore, duplicated response profiles were retained in the analysis.
+```
+
+---
+
+## Preprocessing Pipeline
+
+The notebook uses separate preprocessing strategies depending on the model type.
+
+### Logistic Regression preprocessing
+
+```text
+Numeric variables:
+median imputation + standardization
+
+Ordinal variables:
+most frequent imputation + standardization
+
+Binary variables:
+most frequent imputation
+
+Nominal variables:
+most frequent imputation + one-hot encoding
+```
+
+Scaling is applied to numeric and ordinal variables because Logistic Regression is sensitive to feature scale.
+
+### Tree-based model preprocessing
+
+```text
+Numeric variables:
+median imputation
+
+Ordinal variables:
+most frequent imputation
+
+Binary variables:
+most frequent imputation
+
+Nominal variables:
+most frequent imputation + one-hot encoding
+```
+
+Scaling is not required for Decision Tree or Random Forest models.
+
+---
+
+## Period-Specific Modeling Strategy
+
+Models are trained independently for each temporal period. This avoids mixing observations from different temporal contexts and allows the study to compare predictive performance and predictor relevance across periods.
+
+For each period, the workflow is:
+
+```text
+1. Filter the dataset to the current period.
+2. Separate predictors and target.
+3. Apply a stratified train/test split.
+4. Train models using GridSearchCV on the training set.
+5. Select hyperparameters using macro F1-score.
+6. Evaluate the selected model once on the held-out test set.
+```
+
+The train/test split uses:
+
+```text
+80% training
+20% testing
+stratified by the target variable
+random_state = 42
+```
+
+The held-out test set is not used during hyperparameter tuning.
+
+---
+
+## Classification Models
+
+The study evaluates three classification models:
+
+```text
+Logistic Regression
+Decision Tree
+Random Forest
+```
+
+These models provide different levels of complexity and interpretability:
+
+- Logistic Regression provides a linear and interpretable baseline.
+- Decision Tree captures non-linear decision rules and is easy to interpret.
+- Random Forest captures more complex non-linear patterns and interactions.
+
+---
+
+## Class Imbalance Strategies
+
+The notebook evaluates three strategies to handle class imbalance.
+
+### 1. Class Weight Grid
+
+Class weighting does not modify the training data. Instead, it adjusts the penalty assigned to each class during model training.
+
+This strategy allows the model to assign more importance to the minority class without creating or duplicating observations.
+
+### 2. RandomOverSampler
+
+RandomOverSampler balances the training data by randomly duplicating observations from the minority class.
+
+It preserves real observations but may increase the risk of overfitting because minority-class cases are repeated.
+
+### 3. SMOTENC
+
+SMOTENC generates synthetic minority-class observations and is designed for datasets containing both numerical and categorical predictors.
+
+In this notebook, age (`S_17`) is treated as numeric, while the remaining predictors are treated as categorical for SMOTENC.
+
+SMOTENC introduces more variability than RandomOverSampler, but synthetic observations may not always fully represent real survey response patterns.
+
+All resampling methods are applied only within the training folds using imbalanced-learn pipelines. The validation and test sets remain unchanged, avoiding data leakage.
+
+---
+
+## Hyperparameter Tuning
+
+Hyperparameter tuning is performed using:
+
+```text
+GridSearchCV
+StratifiedKFold cross-validation
+refit metric = f1_macro
+```
+
+The main selection metric is macro F1-score because it gives equal weight to both classes and is more appropriate than accuracy under class imbalance.
+
+---
+
 ## Evaluation Metrics
-## Base Preprocessing Pipeline
-## Model Evaluation Function
 
-# PART 5 — Experiment 1: Class Weight Grid
-## Class Weight Grid Model Configuration
-## Class Weight Grid Training Function
-## Run Class Weight Grid Models by Historical Period
-## Class Weight Grid Results Summary Table
-## Best Class Weight Grid Model by Historical Period
-
-# PART 6 — Experiment 2: RandomOverSampler
-## RandomOverSampler Model Configuration
-## RandomOverSampler Training Function
-## Run RandomOverSampler Models by Historical Period
-## RandomOverSampler Results Summary Table
-## Best RandomOverSampler Model by Historical Period
-
-# PART 7 — Experiment 3: SMOTENC
-## SMOTENC Feature Groups
-## Pre-SMOTENC Imputation
-## Post-SMOTENC Preprocessing
-## SMOTENC Model Configuration
-## SMOTENC Training Function
-## Run SMOTENC Models by Historical Period
-## SMOTENC Results Summary Table
-## Best SMOTENC Model by Historical Period
-
-# PART 8 — Comparison of All Experiments
-## Full Model Comparison Across Experiments
-## Final Selected Models by Historical Period
-## Best Model Performance by Experiment and Historical Period
-## Best Final Model Performance by Historical Period
-
-# PART 9 — Predictor Importance Analysis
-## Permutation Importance for Final Models
-## Tree-Based Feature Importance
-## Logistic Regression Coefficients
-## Comparison of Predictor Importance Methods
-## Interpretation of Predictor Importance
-```
-
-## Recommended Environment
-
-The experiments can be computationally expensive because they combine multiple periods, models, hyperparameter grids, cross-validation folds, and imbalance-handling strategies.
-
-Recommended setup:
-
-- Python 3.12 or compatible
-- CPU-based execution is sufficient
-- GPU is not required for the current scikit-learn and imbalanced-learn workflow
-- 32 GB RAM recommended
-- 64 GB RAM preferred for larger grids and SMOTENC
-- Multi-core CPU recommended
-
-For faster execution during development, use reduced grids or fewer cross-validation folds. For final results, use the full grid and keep the random seed fixed for reproducibility.
-
-## Python Dependencies
-
-The main dependencies are:
+The notebook computes the following evaluation metrics:
 
 ```text
-pandas
-numpy
-matplotlib
-scikit-learn
-imbalanced-learn
-openpyxl
+accuracy
+balanced_accuracy
+precision
+recall
+f1
+f1_macro
+roc_auc
+confusion matrix
+classification report
 ```
 
-If Markdown tables are exported from pandas, `tabulate` may also be useful:
+Important note:
 
 ```text
-tabulate
+precision, recall, and f1 are computed for the positive class, Satisfied (1).
+f1_macro averages F1-score across both classes.
 ```
 
-A reproducible `requirements.txt` should pin package versions used in the final run.
+The main metric for model selection is:
 
-## Methodological Notes
+```text
+f1_macro
+```
 
-- The analysis is predictive, not causal.
-- The historical periodization is used for comparison, not causal identification.
-- The target is imbalanced, so `f1_macro` and `balanced_accuracy` are prioritized over accuracy.
-- Oversampling is performed only inside cross-validation folds using `imblearn.pipeline.Pipeline`.
-- The held-out test set is never oversampled.
-- Feature importance results indicate predictive relevance, not causal effects.
-- Permutation importance values represent decreases in `f1_macro`; they are not probabilities or percentages.
-- Negative permutation importance values indicate that shuffling a variable slightly improved performance, usually suggesting noise, instability, or negligible predictive contribution.
+---
+
+## Final Model Selection
+
+The best final model for each period is selected according to macro F1-score on the held-out test set.
+
+Final selected models:
+
+| Period | Best model | Imbalance strategy | f1_macro | Accuracy | ROC-AUC |
+|---|---|---|---:|---:|---:|
+| First period | Decision Tree | Class Weight Grid | 0.5967 | 0.6796 | 0.5969 |
+| Second period | Logistic Regression | Class Weight Grid | 0.6866 | 0.7121 | 0.7448 |
+| Third period | Random Forest | Class Weight Grid | 0.7206 | 0.7444 | 0.7873 |
+
+Across the three temporal periods, the best final models were obtained using the class-weight strategy. In the first period, the best model was a Decision Tree trained with the class weight grid. In the second period, the best model was Logistic Regression with class weights. In the third period, the best model was Random Forest with class weights.
+
+This result indicates that adjusting the contribution of each class during model training was more effective than modifying the training distribution through oversampling. Although RandomOverSampler and SMOTENC produced competitive results in some periods, neither strategy outperformed the best class-weighted model in the final period-specific selection.
+
+A concise result statement is:
+
+```text
+The final model selection shows that the class-weight strategy produced the best-performing model in all three periods. This suggests that, for this dataset, adjusting class penalties during model training was more effective than generating additional minority-class observations through RandomOverSampler or SMOTENC.
+```
+
+---
+
+## Predictor Importance and Interpretability Analysis
+
+The interpretation follows a hierarchical approach.
+
+### Main interpretation method: permutation importance
+
+Permutation importance is used as the main interpretability method because it is computed on the final selected model for each period and directly measures the decrease in predictive performance after randomly shuffling each predictor.
+
+Since the main evaluation metric is macro F1-score, permutation importance is aligned with the study's model selection criterion.
+
+The values represent the average decrease in macro F1-score after randomly permuting each predictor. They should not be interpreted as probabilities or percentages.
+
+Example interpretation:
+
+```text
+If a predictor has permutation importance of 0.0932, it means that randomly shuffling that predictor reduced macro F1-score by approximately 0.0932 points on average.
+```
+
+Higher values indicate greater predictive contribution. Values close to zero indicate little contribution. Negative values indicate that shuffling the variable slightly improved performance, which may reflect noise, instability, or redundancy.
+
+### Complementary interpretation methods
+
+Tree-based feature importance and Logistic Regression coefficients are used as complementary methods.
+
+```text
+Permutation importance:
+computed on the final selected model for each period.
+
+Tree-based feature importance:
+computed on the best Random Forest model for each period.
+
+Logistic Regression coefficients:
+computed on the best Logistic Regression model for each period.
+```
+
+Tree-based feature importance measures internal impurity reduction in Random Forest models. Logistic Regression coefficients provide a linear and directional reference for the positive class, `Satisfied (1)`.
+
+The main substantive interpretation is based on permutation importance. Predictors that also appear as relevant in tree-based importance or Logistic Regression coefficients provide additional supporting evidence.
+
+Recommended methodological statement:
+
+```text
+The main predictor interpretation is based on permutation importance, computed on the final selected model for each period. This method directly quantifies the decrease in macro F1-score when each predictor is randomly permuted. Tree-based feature importance and Logistic Regression coefficients are reported as complementary analyses.
+```
+
+---
+
+## Main Predictor Importance Results
+
+### Permutation importance: top predictors by period
+
+#### First period
+
+```text
+Trust in Political Parties: 0.0464
+Age: 0.0419
+Support for democracy: 0.0409
+Trust in Police: 0.0302
+Trust in Armed Forces: 0.0214
+```
+
+#### Second period
+
+```text
+Perception of national economy: 0.0830
+Trust in Congress: 0.0529
+Support for democracy: 0.0212
+Trust in Political Parties: 0.0180
+Trust in Armed Forces: 0.0099
+```
+
+#### Third period
+
+```text
+Perception of national economy: 0.0932
+Support for democracy: 0.0327
+Trust in Congress: 0.0145
+Trust in Judiciary: 0.0131
+Trust in Political Parties: 0.0105
+```
+
+The main pattern is that economic perception becomes the dominant predictor in the second and third periods, while institutional trust and political attitudes remain consistently relevant.
+
+---
+
+## Predictor Importance by Conceptual Group
+
+Permutation importance was also aggregated by conceptual predictor group.
+
+### First period
+
+| Conceptual group | Total importance |
+|---|---:|
+| Institutional trust | 0.1486 |
+| Sociodemographic characteristics | 0.1087 |
+| Political attitudes | 0.0579 |
+| Economic perceptions | 0.0147 |
+| Material conditions | 0.0118 |
+| Labor and economic conditions | -0.0020 |
+
+### Second period
+
+| Conceptual group | Total importance |
+|---|---:|
+| Institutional trust | 0.0877 |
+| Economic perceptions | 0.0830 |
+| Political attitudes | 0.0212 |
+| Sociodemographic characteristics | 0.0094 |
+| Material conditions | 0.0061 |
+| Labor and economic conditions | 0.0000 |
+
+### Third period
+
+| Conceptual group | Total importance |
+|---|---:|
+| Economic perceptions | 0.0932 |
+| Institutional trust | 0.0531 |
+| Political attitudes | 0.0347 |
+| Sociodemographic characteristics | 0.0197 |
+| Material conditions | 0.0050 |
+| Labor and economic conditions | 0.0009 |
+
+Main interpretation:
+
+```text
+Institutional trust dominates the first period, while economic perceptions dominate the third period. The second period shows a transition where institutional trust and economic perception have similar total predictive importance.
+```
+
+---
+
+## Key Findings
+
+The main findings from the executed notebook are:
+
+1. Class weighting produced the best final model in all three periods.
+2. The best model type varied by period: Decision Tree in the first period, Logistic Regression in the second period, and Random Forest in the third period.
+3. Predictive performance improved across periods, with the highest macro F1-score in the third period.
+4. Institutional trust was the most important conceptual group in the first period.
+5. Economic perceptions became the dominant predictor group in the third period.
+6. The second period shows a transition where institutional trust and economic perceptions have similar predictive relevance.
+7. Support for democracy and institutional trust variables remain relevant across periods.
+8. Results should be interpreted as predictive associations, not causal effects.
+
+---
 
